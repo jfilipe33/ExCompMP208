@@ -9,18 +9,19 @@
 %                                                               %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function map = MAP(sys,map,i)
+function map = MAP(sys,map,i,N)
     
     map.A = zeros(2,2);             %Auxiliary MAP Sum Matrix
     map.B = zeros(2,1);             %Auxiliary MAP Sum Matrix
        
-    for m = 1:sys.N                                     
+    for m = 1:N                                         %Monte Carlo simulation loop
         v = sys.R*randn(1);                             %Measurement Noise 
         sys.y(m,1) = sys.H(m,:)*sys.theta + v;          %Measurement Equation
-        map.A = map.A + sys.H(m,:)'*inv(sys.R)*sys.H(m,:);
-        map.B = map.B + sys.H(m,:)'*inv(sys.R)*sys.y(m,1);
+        map.A = map.A + sys.H'*inv(sys.R)*sys.H;
+        map.B = map.B + sys.H'*inv(sys.R)*sys.y;
     end
     
+    map.A = map.A + sys.H'*inv(sys.R)*sys.H;
     Pn = inv(map.A + inv(sys.P_t));
     map.thetaMAP(:,i) = Pn*inv(sys.P_t)*sys.m_t + Pn*(map.B);
     map.RMS_MAP = map.RMS_MAP + ((map.thetaMAP(:,i)-sys.theta)*(map.thetaMAP(:,i)-sys.theta)');
