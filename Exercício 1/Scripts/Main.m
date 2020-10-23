@@ -21,7 +21,7 @@ est.W = 1;                  %Least Squares Weighing Matrix
 est.P_t = [0.01 0;0 0.04];  %Theta Covariance Matrix
 est.m_t = [1 2]';           %Theta Expected Value
 est.theta = [0 0]';         %Parameter to be estimated
-est.N = 10000;              %Number of measurements
+est.N = 100000;              %Number of measurements
 est.H = [1:est.N; ones(size(1:est.N))]';
 
 %% Least Square Variables Initialization
@@ -40,7 +40,7 @@ map.RMS_MAP = zeros(2,2);       %Maximum a Posteriori RMS Error
 
 %% Simulation
 
-for n = 1:100                                           %Monte Carlo Loop
+for n = 1:100                                          %Monte Carlo Loop
     est.theta = sqrtm(est.P_t)*randn(2,1) + est.m_t;    %Parameter values definition
     
     ls = LS(est,ls,n);                  %Least Squares Estimation
@@ -66,7 +66,7 @@ sqrtm(map.RMStheo)
 %% Histogram Plotting
 
 hLS = histogram2(ls.thetaLS(:,1),ls.thetaLS(:,2));
-%hLS.NumBins = [20 20];
+hLS.BinWidth = [0.1 0.2];
 xlabel('\theta_1');
 ylabel('\theta_2');
 zlabel('Estimate Realizations');
@@ -74,7 +74,7 @@ zlabel('Estimate Realizations');
 figure
 
 hMAP = histogram2(map.thetaMAP(:,1),map.thetaMAP(:,2));
-%hMAP.NumBins = [20 20]; 
+hMAP.BinWidth = [0.1 0.2];
 xlabel('\theta_1');
 ylabel('\theta_2');
 zlabel('Estimate Realizations');

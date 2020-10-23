@@ -15,8 +15,8 @@ function map = MAP(sys,map,i)
     map.B = zeros(2,1);             %Auxiliary MAP Sum Matrix
        
     for m = 1:sys.N                                     
-        v = sys.R*randn(1);                             %Measurement Noise 
-        sys.y(m,1) = sys.H(m,:)*sys.theta + v;          %Measurement Equation
+        map.v(m,1) = sys.R*randn(1);                             %Measurement Noise 
+        sys.y(m,1) = sys.H(m,:)*sys.theta + map.v(m,1);          %Measurement Equation
         map.A = map.A + sys.H(m,:)'*inv(sys.R)*sys.H(m,:);
         map.B = map.B + sys.H(m,:)'*inv(sys.R)*sys.y(m,1);
     end
