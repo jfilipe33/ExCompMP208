@@ -10,7 +10,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Cache Clean-up
-%clear all
+clear all
 close all
 clc
 
@@ -25,12 +25,12 @@ est.e2 = [0 1]';            %Unitary Vector
 est.T = 0.1;                %Sampling Time
 est.x = [est.m];            %Estimatior initial Value
 t = 0:est.T:20;             %Simulation Period
-n = 10;                     %Number of Realizations in the simulation
-est.mean = zeros(2,n);          %Error Sample Mean (Kalman Filter)
-est.RMS = zeros(2,n);           %RMS Error (Kalman Filter)
-est.Infmean = zeros(2,n);       %Error Sample Mean (Information Filter)
-est.InfRMS = zeros(2,n);        %RMS Error (Information Filter)
-Pkk = zeros(2,2,n);             %Estimation Error Covariance Matrix for each realization
+N = 10;                     %Number of Realizations in the simulation
+est.mean = zeros(2,length(t));          %Error Sample Mean (Kalman Filter)
+est.RMS = zeros(2,length(t));           %RMS Error (Kalman Filter)
+est.Infmean = zeros(2,length(t));       %Error Sample Mean (Information Filter)
+est.InfRMS = zeros(2,length(t));        %RMS Error (Information Filter)
+Pkk = zeros(2,2,N);             %Estimation Error Covariance Matrix for each realization
 
 %% Plant Modeling
 
@@ -45,7 +45,7 @@ sys.m = est.m;
 
 %% Simulation
 
-for k = 1:n
+for k = 1:N
     
     sys.x = sqrtm(sys.P)*randn(2,1) + sys.m;             %Initial value of X
     est.P = diag([1E-4 1E-8]);                           %Initial Estimate Covariance Matrix
@@ -69,14 +69,18 @@ for k = 1:n
 
         est = InfFil(sys,est);                          %Information Filter function
         exInf = inv(est.L)*est.z - sys.x;               %Information Filter estimation Error
-        
-        z1(k,cont) = est.z(1);
-        z2(k,cont) = est.z(2);
+
         exInf1(k,cont) = est.e1'*exInf;                 %Isolating exInf component 1
         exInf2(k,cont) = est.e2'*exInf;                 %Isolating exInf component 2
         
-        est.InfRMS(1,k) = est.InfRMS(1,k) + exInf(1)*exInf(1)';     %Sum of Squared Errors in exInf(1)
-        est.InfRMS(2,k) = est.InfRMS(2,k) + exInf(2)*exInf(2)';     %Sum of Squared Errors in exInf(2)
+        est.Infmean(1,cont) = est.Infmean(1,cont) + exInf(1);          %Sample mean of IF Estimation Error of x1
+        est.Infmean(2,cont) = est.Infmean(1,cont) + exInf(2);          %Sample mean of IF Estimation Error of x2
+         
+        est.InfRMS(1,cont) = est.InfRMS(1,cont) + exInf(1)*exInf(1)';     %Sum of Squared Errors in exInf(1)
+        est.InfRMS(2,cont) = est.InfRMS(2,cont) + exInf(2)*exInf(2)';     %Sum of Squared Errors in exInf(2)
+        
+        est.InfPplot(1,cont) = sqrtm(inv(est.L(1,1)));      %Theoretical IF Standard Deviation of exInf(1)
+        est.InfPplot(2,cont) = sqrtm(inv(est.L(2,2)));      %Theoretical IF Standard Deviation of exInf(2)
         
         % Kalman Filter
 
@@ -85,9 +89,17 @@ for k = 1:n
         
         ex1(k,cont) = est.e1'*ex;                       %Isolating ex component 1
         ex2(k,cont) = est.e2'*ex;                       %Isolating ex component 1
+        
+        est.mean(1,cont) = est.mean(1,cont) + ex(1);          %Sample mean of KF Estimation Error of x1
+        est.mean(2,cont) = est.mean(1,cont) + ex(2);          %Sample mean of KF Estimation Error of x2
 
-        est.RMS(1,k) = est.RMS(1,k) + ex(1)*ex(1)';     %Sum of Squared Errors in ex(1)
-        est.RMS(2,k) = est.RMS(2,k) + ex(2)*ex(2)';     %Sum of Squared Errors in ex(1)
+        est.RMS(1,cont) = est.RMS(1,cont) + ex(1)*ex(1)';     %Sum of Squared Errors in ex(1)
+        est.RMS(2,cont) = est.RMS(2,cont) + ex(2)*ex(2)';     %Sum of Squared Errors in ex(2)
+        
+        est.Pplot(1,cont) = sqrtm(est.P(1,1));          %Theoretical KF Standard Deviation of ex(1)
+        est.Pplot(2,cont) = sqrtm(est.P(2,2));          %Theoretical KF Standard Deviation of ex(2)
+         
+%         
 
     end
     figure(1);                            
@@ -125,21 +137,50 @@ for k = 1:n
     xlabel('\textbf{Time [s]}','interpreter','LaTeX');
     ylabel('\textbf{Amplitude [\,-\,]}','interpreter','LaTeX');
     
-    est.mean(1,k) = sum(ex1(k,:))/length(ex1(k,:));             %Sample mean of KF Estimation Error of x1
-    est.mean(2,k) = sum(ex2(k,:))/length(ex2(k,:));             %Sample mean of KF Estimation Error of x2
-    
-    est.Infmean(1,k) = sum(exInf1(k,:))/length(exInf1(k,:));    %Sample mean of IF Estimation Error of x1
-    est.Infmean(2,k) = sum(exInf2(k,:))/length(exInf2(k,:));    %Sample mean of IF Estimation Error of x2
-    
-    est.RMS(1,k) = sqrt(est.RMS(1,k)/(cont-1));                 %KF Root Mean Square Estimation Error of x1
-    est.RMS(2,k) = sqrt(est.RMS(2,k)/(cont-1));                 %KF Root Mean Square Estimation Error of x2
-    
-    est.InfRMS(1,k) = sqrt(est.InfRMS(1,k)/(cont-1));           %IF Root Mean Square Estimation Error of x1
-    est.InfRMS(2,k) = sqrt(est.InfRMS(2,k)/(cont-1));           %IF Root Mean Square Estimation Error of x2
-    
-    Pkk(:,:,k) = est.P;             %KF Estimation Error Covariance Matrix of realization k
-    Lkk(:,:,k) = est.L;             %IF Estimation Error Covariance Matrix of realization k
+
 end
+
+est.mean(1,:) = est.mean(1,:)/N;                        %KF Estimation Error Sample Mean of x1
+est.mean(2,:) = est.mean(2,:)/N;                        %KF Estimation Error Sample Mean of x2
+
+est.pRMS(1,:) = sqrt(est.RMS(1,:)/(N-1));                 %KF Root Mean Square Estimation Error of x1
+est.pRMS(2,:) = sqrt(est.RMS(2,:)/(N-1));                 %KF Root Mean Square Estimation Error of x2
+
+est.Infmean(1,:) = est.Infmean(1,:)/N;                      %IF Estimation Error Sample Mean of x1
+est.Infmean(2,:) = est.Infmean(2,:)/N;                      %IF Estimation Error Sample Mean of x2
+
+est.pInfRMS(1,:) = sqrt(est.InfRMS(1,:)/(N-1));                 %IF Root Mean Square Estimation Error of x1
+est.pInfRMS(2,:) = sqrt(est.InfRMS(2,:)/(N-1));                 %IF Root Mean Square Estimation Error of x2
+
+figure(2)
+plot(t,est.pRMS(1,:),'k','LineStyle','--','LineWidth',2);
+plot(t,-est.pRMS(1,:),'k','LineStyle','--','LineWidth',2);
+plot(t,est.mean(1,:),'b','LineStyle','-','LineWidth',2)
+plot(t,est.Pplot(1,:),'r','LineStyle','-','LineWidth',2)
+plot(t,-est.Pplot(1,:),'r','LineStyle','-','LineWidth',2)
+
+figure(3)
+plot(t,est.pRMS(2,:),'k','LineStyle','--','LineWidth',2);
+plot(t,-est.pRMS(2,:),'k','LineStyle','--','LineWidth',2);
+plot(t,est.mean(2,:),'b','LineStyle','-','LineWidth',2)
+plot(t,est.Pplot(2,:),'r','LineStyle','-','LineWidth',2)
+plot(t,-est.Pplot(2,:),'r','LineStyle','-','LineWidth',2)
+
+figure(4)
+plot(t,est.pInfRMS(1,:),'k','LineStyle','--','LineWidth',2);
+plot(t,-est.pInfRMS(1,:),'k','LineStyle','--','LineWidth',2);
+plot(t,est.Infmean(1,:),'b','LineStyle','-','LineWidth',2)
+plot(t,est.InfPplot(1,:),'r','LineStyle','-','LineWidth',2)
+plot(t,-est.InfPplot(1,:),'r','LineStyle','-','LineWidth',2)
+
+figure(5)
+plot(t,est.pInfRMS(2,:),'k','LineStyle','--','LineWidth',2);
+plot(t,-est.pInfRMS(2,:),'k','LineStyle','--','LineWidth',2);
+plot(t,est.Infmean(2,:),'b','LineStyle','-','LineWidth',2)
+plot(t,est.InfPplot(2,:),'r','LineStyle','-','LineWidth',2)
+plot(t,-est.InfPplot(2,:),'r','LineStyle','-','LineWidth',2)
+
+
 
 figure(1)
 plot(t,y_bar,'--');         %Adding y_bar to figure 1
