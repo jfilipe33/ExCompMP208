@@ -1,0 +1,145 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                               %
+%              - Exercício Computacional de MP208 -             %
+%    --- Optimal Filtering with Aerospace Applications ---      %
+%                                                               %
+%              Autor: João Filipe R. P de A. Silva              %
+%                                                               %
+%              Main Script: Análise de Estimadores              %
+%                                                               %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Cache Clean-up
+%clear all
+close all
+clc
+
+%% General Variables declaration
+
+est.R = 0.01;               %Measurement Noise variance
+est.Q = diag([0.01 0.04]);  %States Disturbance variance
+est.P = diag([1E-4 1E-8]);  %X Covariance Matrix
+est.m = [1 0]';             %X Expected Value
+est.e1 = [1 0]';            %Unitary Vector
+est.e2 = [0 1]';            %Unitary Vector
+est.T = 0.1;                %Sampling Time
+est.x = [est.m];            %Estimatior initial Value
+t = 0:est.T:20;             %Simulation Period
+n = 10;                     %Number of Realizations in the simulation
+est.mean = zeros(2,n);          %Error Sample Mean (Kalman Filter)
+est.RMS = zeros(2,n);           %RMS Error (Kalman Filter)
+est.Infmean = zeros(2,n);       %Error Sample Mean (Information Filter)
+est.InfRMS = zeros(2,n);        %RMS Error (Information Filter)
+Pkk = zeros(2,2,n);             %Estimation Error Covariance Matrix for each realization
+
+%% Plant Modeling
+
+sys.A = [1 0.1; 0 1];                      %System States Matrix
+sys.B = [0.005; 0.1];                      %System Input Matrix
+sys.C = [1 0];                             %System Output Matrix
+sys.y = 0;                                 %System Output Initialization;
+sys.y_bar = 5;                             %Command Input Initialization;
+
+sys.P = est.P;                             
+sys.m = est.m; 
+
+%% Simulation
+
+for k = 1:n
+    
+    sys.x = sqrtm(sys.P)*randn(2,1) + sys.m;             %Initial value of X
+    est.P = diag([1E-4 1E-8]);                           %Initial Estimate Covariance Matrix
+    est.x = [est.m];                                     %Initial Estimate of X
+    
+    for cont = 1:length(t)
+
+        %Model Behaviour
+
+        sys.u = 10*(sys.y_bar - est.e1'*sys.x) - 2*est.e2'*sys.x;   %Control Input
+        sys.w = sqrtm(est.Q)*randn(2,1);                %State Disturbance Realization
+        sys.v = sqrt(est.R)*randn(1,1);                 %Measurement Noise Realization
+
+        sys.x = sys.A*sys.x + sys.B*sys.u + sys.w;      %System states dynamic
+        sys.y = sys.C*sys.x + sys.v;                    %System measurement dynamic
+
+        y(k,cont) = sys.y;                              %Output plotting variable;
+        y_bar(k,cont) = sys.y_bar;                      %Command Input plotting variable;
+        
+        % Information Filter
+
+        est = InfFil(sys,est);                          %Information Filter function
+        exInf = inv(est.L)*est.z - sys.x;               %Information Filter estimation Error
+        
+        z1(k,cont) = est.z(1);
+        z2(k,cont) = est.z(2);
+        exInf1(k,cont) = est.e1'*exInf;                 %Isolating exInf component 1
+        exInf2(k,cont) = est.e2'*exInf;                 %Isolating exInf component 2
+        
+        est.InfRMS(1,k) = est.InfRMS(1,k) + exInf(1)*exInf(1)';     %Sum of Squared Errors in exInf(1)
+        est.InfRMS(2,k) = est.InfRMS(2,k) + exInf(2)*exInf(2)';     %Sum of Squared Errors in exInf(2)
+        
+        % Kalman Filter
+
+        est = KFil(sys,est);                            %Kalman Filter function
+        ex = est.x - sys.x;                             %Kalman Filter estimation Error
+        
+        ex1(k,cont) = est.e1'*ex;                       %Isolating ex component 1
+        ex2(k,cont) = est.e2'*ex;                       %Isolating ex component 1
+
+        est.RMS(1,k) = est.RMS(1,k) + ex(1)*ex(1)';     %Sum of Squared Errors in ex(1)
+        est.RMS(2,k) = est.RMS(2,k) + ex(2)*ex(2)';     %Sum of Squared Errors in ex(1)
+
+    end
+    figure(1);                            
+    plot(t,y(k,:));                     
+    hold on;
+    title('\textbf{Measured Outputs $y_k$ vs Command Input $\bar{y}_k$}','interpreter','LaTeX');
+    xlabel('\textbf{Time [s]}','interpreter','LaTeX');
+    ylabel('\textbf{Amplitude [\,-\,]}','interpreter','LaTeX');
+    
+    figure(2)
+    plot(t,ex1(k,:));
+    hold on;
+    title('\textbf{Kalman Filter Estimation Error of state $x_1$}','interpreter','LaTeX');
+    xlabel('\textbf{Time [s]}','interpreter','LaTeX');
+    ylabel('\textbf{Amplitude [\,-\,]}','interpreter','LaTeX');
+    
+    figure(3)
+    plot(t,ex2(k,:));
+    hold on;
+    title('\textbf{Kalman Filter Estimation Error of state $x_2$}','interpreter','LaTeX');
+    xlabel('\textbf{Time [s]}','interpreter','LaTeX');
+    ylabel('\textbf{Amplitude [\,-\,]}','interpreter','LaTeX');
+    
+    figure(4)
+    plot(t,exInf1(k,:));
+    hold on;
+    title('\textbf{Information Filter Estimation Error of state $x_1$}','interpreter','LaTeX');
+    xlabel('\textbf{Time [s]}','interpreter','LaTeX');
+    ylabel('\textbf{Amplitude [\,-\,]}','interpreter','LaTeX');
+    
+    figure(5)
+    plot(t,exInf2(k,:));
+    hold on;
+    title('\textbf{Information Filter Estimation Error of state $x_2$}','interpreter','LaTeX');
+    xlabel('\textbf{Time [s]}','interpreter','LaTeX');
+    ylabel('\textbf{Amplitude [\,-\,]}','interpreter','LaTeX');
+    
+    est.mean(1,k) = sum(ex1(k,:))/length(ex1(k,:));             %Sample mean of KF Estimation Error of x1
+    est.mean(2,k) = sum(ex2(k,:))/length(ex2(k,:));             %Sample mean of KF Estimation Error of x2
+    
+    est.Infmean(1,k) = sum(exInf1(k,:))/length(exInf1(k,:));    %Sample mean of IF Estimation Error of x1
+    est.Infmean(2,k) = sum(exInf2(k,:))/length(exInf2(k,:));    %Sample mean of IF Estimation Error of x2
+    
+    est.RMS(1,k) = sqrt(est.RMS(1,k)/(cont-1));                 %KF Root Mean Square Estimation Error of x1
+    est.RMS(2,k) = sqrt(est.RMS(2,k)/(cont-1));                 %KF Root Mean Square Estimation Error of x2
+    
+    est.InfRMS(1,k) = sqrt(est.InfRMS(1,k)/(cont-1));           %IF Root Mean Square Estimation Error of x1
+    est.InfRMS(2,k) = sqrt(est.InfRMS(2,k)/(cont-1));           %IF Root Mean Square Estimation Error of x2
+    
+    Pkk(:,:,k) = est.P;             %KF Estimation Error Covariance Matrix of realization k
+    Lkk(:,:,k) = est.L;             %IF Estimation Error Covariance Matrix of realization k
+end
+
+figure(1)
+plot(t,y_bar,'--');         %Adding y_bar to figure 1
