@@ -180,7 +180,5 @@ plot(t,est.Infmean(2,:),'b','LineStyle','-','LineWidth',2)
 plot(t,est.InfPplot(2,:),'r','LineStyle','-','LineWidth',2)
 plot(t,-est.InfPplot(2,:),'r','LineStyle','-','LineWidth',2)
 
-
-
 figure(1)
 plot(t,y_bar,'--');         %Adding y_bar to figure 1

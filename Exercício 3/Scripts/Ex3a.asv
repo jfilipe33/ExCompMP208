@@ -1,0 +1,51 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                               %
+%              - Exercício Computacional de MP208 -             %
+%    --- Optimal Filtering with Aerospace Applications ---      %
+%                                                               %
+%              Autor: João Filipe R. P de A. Silva              %
+%                                                               %
+%              Main Script: Análise de Estimadores              %
+%                                                               %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Cache Clean-up
+clear all
+close all
+clc
+
+%% General Variables declaration
+
+sys.R = 0.01;           %Measurement Noise variance
+sys.Q = 0.01*eye(2);    %States Disturbance variance
+sys.P = eye(2);         %X Covariance Matrix
+sys.m = [0;0];          %State Expected Value
+sys.y = [0];            %Output Initial Value
+Ts = 0.1;               %Sampling Time
+t = 0:Ts:20;            %Simulation Period
+N = 100;                %Number of Realizations in the simulation
+
+%% Simulation
+    
+sys.x = sqrtm(sys.P)*randn(2,1) + sys.m;             %Initial value of X
+
+for cont = 1:length(t)
+    
+    sys.u = -10*sys.y + 10; 
+    
+    states = sys.x;
+    sys.w = sqrtm(sys.Q)*randn(2,1);                %State Disturbance Realization
+    sys.v = sqrt(sys.R)*randn(1,1);                 %Measurement Noise Realization
+    
+    %integration using RK4
+            
+    k1 = Ts*dyn(states,sys);
+    k2 = Ts*dyn(states+k1/2,sys);
+    k3 = Ts*dyn(states+k2/2,sys);         
+    k4 = Ts*dyn(states+k3); 
+    states  = states + k1/6 + k2/3 + k3/3 + k4/6; 
+    
+    sys.x = states;
+    sys.y = sys.x(1) + sys.v;
+    
+end
